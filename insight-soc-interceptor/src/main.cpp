@@ -2,12 +2,13 @@
 
 constexpr size_t honda_packet_length{12};
 constexpr int honda_read_timeout{500};
-constexpr uint8_t start_char{0x87};
+constexpr uint8_t start_char1{0x87};
+constexpr uint8_t start_char2{0xAA};
 constexpr uint32_t honda_serial_baud{9600};
 constexpr auto honda_serial_config{SERIAL_8E1};
 
 static auto &honda_bms_serial{Serial2};
-static void forward_bms_messages();
+static bool forward_bms_messages(uint8_t start_char);
 static auto &honda_vcm_serial{Serial3};
 
 static auto &console_serial{SerialUSB};
@@ -21,7 +22,8 @@ void setup()
 
 void loop()
 {
-  forward_bms_messages();
+  forward_bms_messages(start_char1);
+  forward_bms_messages(start_char2);
 }
 
 static void print_honda_serial_message(const uint8_t *buffer)
@@ -32,37 +34,24 @@ static void print_honda_serial_message(const uint8_t *buffer)
     buffer[8], buffer[9], buffer[10], buffer[11]);
 }
 
-static bool receive_packet(uint8_t *buffer, Stream &stream)
+static bool receive_packet(uint8_t *buffer, Stream &stream, uint8_t start_char)
 {
-  bool found_start = false;
-  while (stream.available())
-  {
-    if (stream.read() == start_char)
-    {
-      found_start = true;
-      break;
-    }
-  }
-
-  if (!found_start)
-  {
-    return false;
-  }
-
+  while (stream.read() != start_char) ;
+  
   buffer[0] = start_char;
   auto bytes_read{stream.readBytes(buffer + 1, honda_packet_length - 1)};
   return bytes_read == honda_packet_length - 1;
 }
 
-static void forward_bms_messages()
+static bool forward_bms_messages(uint8_t start_char)
 {
   uint8_t buffer[honda_packet_length];
-  while (honda_bms_serial.available())
+  if (receive_packet(buffer, honda_bms_serial, start_char))
   {
-    if (receive_packet(buffer, honda_bms_serial))
-    {
-      honda_vcm_serial.write(buffer, honda_packet_length);
-      print_honda_serial_message(buffer);
-    }
+    honda_vcm_serial.write(buffer, honda_packet_length);
+    print_honda_serial_message(buffer);
+    return 1;
   }
+
+  return 0;
 }
