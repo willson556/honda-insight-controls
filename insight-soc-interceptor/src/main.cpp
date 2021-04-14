@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 constexpr size_t honda_packet_length{12};
-constexpr int honda_read_timeout{500};
+constexpr int honda_read_timeout{5};
 constexpr uint8_t start_char1{0x87};
 constexpr uint8_t start_char2{0xAA};
 constexpr uint32_t honda_serial_baud{9600};
@@ -16,6 +16,7 @@ static auto &console_serial{SerialUSB};
 void setup()
 {
   honda_bms_serial.begin(honda_serial_baud, honda_serial_config);
+  honda_bms_serial.setTimeout(honda_read_timeout);
   honda_vcm_serial.begin(honda_serial_baud, honda_serial_config);
   console_serial.begin(115200);
 }
@@ -37,7 +38,7 @@ static void print_honda_serial_message(const uint8_t *buffer)
 static bool receive_packet(uint8_t *buffer, Stream &stream, uint8_t start_char)
 {
   while (stream.read() != start_char) ;
-  
+
   buffer[0] = start_char;
   auto bytes_read{stream.readBytes(buffer + 1, honda_packet_length - 1)};
   return bytes_read == honda_packet_length - 1;
