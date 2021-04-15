@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 constexpr size_t honda_packet_length{12};
-constexpr int honda_read_timeout{5};
+constexpr int honda_read_timeout{10};
 constexpr uint8_t start_char1{0x87};
 constexpr uint8_t start_char2{0xAA};
 constexpr uint32_t honda_serial_baud{9600};
