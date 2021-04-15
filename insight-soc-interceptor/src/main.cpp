@@ -27,12 +27,48 @@ void loop()
   forward_bms_messages(start_char2);
 }
 
-static void print_honda_serial_message(const uint8_t *buffer)
+static void print_honda_serial_message(const uint8_t *buffer, bool ioio)
 {
-  console_serial.printf("BMS: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
-    buffer[0], buffer[1], buffer[2], buffer[3],
-    buffer[4], buffer[5], buffer[6], buffer[7],
-    buffer[8], buffer[9], buffer[10], buffer[11]);
+  if(ioio)
+  {
+    console_serial.printf(" In: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+      buffer[0], buffer[1], buffer[2], buffer[3],
+      buffer[4], buffer[5], buffer[6], buffer[7],
+      buffer[8], buffer[9], buffer[10], buffer[11]);
+  }
+  else
+  {
+    console_serial.printf("Out: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+      buffer[0], buffer[1], buffer[2], buffer[3],
+      buffer[4], buffer[5], buffer[6], buffer[7],
+      buffer[8], buffer[9], buffer[10], buffer[11]);
+  }
+
+}
+
+static void adjust_honda_packet(uint8_t *buffer)
+{
+  uint8_t check_sum = 0;
+
+  if(buffer[0] == 0x87)
+  {
+    buffer[3]=0x15;
+    buffer[4]=0x6F;
+    buffer[8]=0x39;
+    buffer[9]=0x39;
+  }
+  if(buffer[0] == 0xAA)
+  {
+
+  }
+
+  for(uint8_t i=0; i<11; i++)
+  {
+    check_sum = check_sum + buffer[i];
+  }
+  check_sum = ~check_sum;
+  check_sum = check_sum + 1;
+  buffer[11]=check_sum & 0x7F ;
 }
 
 static bool receive_packet(uint8_t *buffer, Stream &stream, uint8_t start_char)
@@ -49,8 +85,10 @@ static bool forward_bms_messages(uint8_t start_char)
   uint8_t buffer[honda_packet_length];
   if (receive_packet(buffer, honda_bms_serial, start_char))
   {
+    print_honda_serial_message(buffer,1);
+    adjust_honda_packet(buffer);
     honda_vcm_serial.write(buffer, honda_packet_length);
-    print_honda_serial_message(buffer);
+    print_honda_serial_message(buffer,0);
     return 1;
   }
 
